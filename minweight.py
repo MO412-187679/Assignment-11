@@ -59,6 +59,31 @@ def read_graph(student: str) -> nx.Graph:
     return nx.relabel_nodes(graph, names)
 
 
+def minimum_cycle(graph: nx.Graph) -> list[str]:
+    """Find the minimum weight cycle on graph."""
+    cycle = nx.approximation.traveling_salesman_problem(graph, cycle=True)
+    return cycle[:-1]
+
+
+def draw_graph(graph: nx.Graph, cycle: list[str]):
+    """Draw graph and its components using Matplotlib."""
+    from matplotlib import pyplot as plt  # matplotlib is only required for drawing
+
+    # node position (Kamada-Kawai requires SciPy)
+    try:
+        position = nx.kamada_kawai_layout(graph)
+    except ModuleNotFoundError:
+        position = None
+    # node drawing
+    nx.draw(graph, position, with_labels=True, node_size=1000, font_size=10)
+
+    # edges
+    capacity = {(u,v): c for u,v,c in graph.edges.data('weight')}
+    nx.draw_networkx_edge_labels(graph, position, edge_labels=capacity)
+
+    # draw on a new window
+    plt.show(block=True)
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -72,4 +97,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     graph = read_graph('Ti')
 
-    raise NotImplementedError(graph)
+    # minimum weight
+    cycle = minimum_cycle(graph)
+    print(cycle)
+
+    # rendering with matplolib
+    if args.draw:
+        draw_graph(graph, cycle)
