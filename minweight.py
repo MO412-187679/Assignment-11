@@ -60,7 +60,15 @@ def read_graph(student: str) -> nx.Graph:
 
 def minimum_cycle(graph: nx.Graph) -> list[str]:
     """Find the minimum weight cycle on graph."""
-    return nx.approximation.traveling_salesman_problem(graph, cycle=True)
+    cycle = nx.approximation.christofides(graph)
+    cycle = nx.approximation.simulated_annealing_tsp(graph, cycle, max_iterations=25, N_inner=250)
+    cycle = nx.approximation.threshold_accepting_tsp(graph, cycle, max_iterations=25, N_inner=250)
+    return cycle  # should be enough for 13 nodes
+
+
+def path_weight(graph: nx.Graph, path: list[str]) -> float:
+    """Total weight of path in graph."""
+    return nx.path_weight(graph, path, 'weight')
 
 
 def draw_graph(graph: nx.Graph, cycle: list[str]):
@@ -108,6 +116,7 @@ if __name__ == '__main__':
     # minimum weight
     cycle = minimum_cycle(graph)
     print(cycle)
+    print('Weight:', path_weight(graph, cycle))
 
     # rendering with matplolib
     if args.draw:
