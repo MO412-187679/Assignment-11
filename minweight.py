@@ -1,4 +1,5 @@
 """Find minimum weight cycle in 'weights.txt'."""
+from itertools import pairwise
 import os.path
 import networkx as nx
 import numpy as np
@@ -36,10 +37,8 @@ def read_weights(*, filename: str = path_to('weights.txt')):
 
     with open(filename, 'r') as file:
         contents = file.read()
-        matrices = (mat.strip() for mat in file.read().split('\n\n'))
 
     weight: dict[str, np.ndarray] = {}
-
     for text in contents.split('\n\n'):
         if not (text := text.strip()):
             continue
@@ -61,25 +60,32 @@ def read_graph(student: str) -> nx.Graph:
 
 def minimum_cycle(graph: nx.Graph) -> list[str]:
     """Find the minimum weight cycle on graph."""
-    cycle = nx.approximation.traveling_salesman_problem(graph, cycle=True)
-    return cycle[:-1]
+    return nx.approximation.traveling_salesman_problem(graph, cycle=True)
 
 
 def draw_graph(graph: nx.Graph, cycle: list[str]):
     """Draw graph and its components using Matplotlib."""
     from matplotlib import pyplot as plt  # matplotlib is only required for drawing
 
-    # node position (Kamada-Kawai requires SciPy)
-    try:
-        position = nx.kamada_kawai_layout(graph)
-    except ModuleNotFoundError:
-        position = None
-    # node drawing
-    nx.draw(graph, position, with_labels=True, node_size=1000, font_size=10)
+    # edges in cycle with stronger colors
+    cycle_edges = set(pairwise(cycle)) | set(pairwise(reversed(cycle)))
+    colors = ['black' if edge in cycle_edges else 'lightgray' for edge in graph.edges()]
+    style = ['solid' if edge in cycle_edges else 'dashed' for edge in graph.edges()]
 
-    # edges
-    capacity = {(u,v): c for u,v,c in graph.edges.data('weight')}
-    nx.draw_networkx_edge_labels(graph, position, edge_labels=capacity)
+    # edge weights as widths
+    weights = nx.get_edge_attributes(graph, "weight")
+    def map_width(weight: float, width: tuple[float, float] = (0.5, 2), maxweight: float = max(weights.values())):
+        minwidth, maxwidth = width
+        return (weight / maxweight) * (maxwidth - minwidth) + minwidth
+
+    widths = [map_width(weights[edge]) for edge in graph.edges()]
+
+    # nodes
+    position = nx.kamada_kawai_layout(graph)
+    nx.draw(graph, position,
+        with_labels=True, node_size=1000, font_size=10,
+        alpha=0.8, style=style, edge_color=colors, width=widths,
+    )
 
     # draw on a new window
     plt.show(block=True)
@@ -90,12 +96,14 @@ if __name__ == '__main__':
 
     # arguments
     parser = ArgumentParser('minweight.py')
+    parser.add_argument('student', nargs='?', default='Ti',
+        help='matrix selector from the input file (default: Ti)')
     parser.add_argument('-d', '--draw', action='store_true',
         help='draw NetworkX graph using Matplotlib')
 
     # reading input
     args = parser.parse_args()
-    graph = read_graph('Ti')
+    graph = read_graph(args.student)
 
     # minimum weight
     cycle = minimum_cycle(graph)
